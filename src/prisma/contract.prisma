@@ -1,0 +1,163 @@
+// -----------------------------------------------------------------------------
+// Identity and Access Management
+// -----------------------------------------------------------------------------
+
+model Person {
+  id                   Uuid      @id @default(uuid())
+  displayName          VarChar(200) @map("display_name")
+  status               VarChar(30)  @map("status")
+  mergedIntoPersonId   Uuid?     @map("merged_into_person_id")
+  lastActivityAt       Timestamptz? @map("last_activity_at")
+  createdAt            Timestamptz @default(now()) @map("created_at")
+  createdByPersonId    Uuid?     @map("created_by_person_id")
+  updatedAt            Timestamptz @default(temporal.updatedAt()) @map("updated_at")
+  updatedByPersonId    Uuid?     @map("updated_by_person_id")
+  rowVersion           BigInt    @default(1) @map("row_version")
+
+  // Relations
+  authIdentities       AuthIdentity[]
+  authSessions         AuthSession[]
+  workspaceMemberships WorkspaceMembership[]
+
+  @@map("IBOT_person")
+}
+
+model AuthIdentity {
+  id                        Uuid      @id @default(uuid())
+  personId                  Uuid      @map("person_id")
+  providerType              VarChar(30) @map("provider_type")
+  providerName              VarChar(80) @map("provider_name")
+  providerSubject           VarChar(320)? @map("provider_subject")
+  loginIdentifierNormalized VarChar(320)? @unique @map("login_identifier_normalized")
+  passwordHash              Text?     @map("password_hash")
+  status                    VarChar(30) @map("status")
+  emailVerifiedAt           Timestamptz? @map("email_verified_at")
+  failedLoginCount          Int       @default(0) @map("failed_login_count")
+  lockedUntil               Timestamptz? @map("locked_until")
+  lastLoginAt               Timestamptz? @map("last_login_at")
+  disabledAt                Timestamptz? @map("disabled_at")
+  createdAt                 Timestamptz @default(now()) @map("created_at")
+  createdByPersonId         Uuid?     @map("created_by_person_id")
+  updatedAt                 Timestamptz @default(temporal.updatedAt()) @map("updated_at")
+  updatedByPersonId         Uuid?     @map("updated_by_person_id")
+  rowVersion                BigInt    @default(1) @map("row_version")
+
+  person                    Person        @relation(fields: [personId], references: [id])
+  sessions                  AuthSession[]
+
+  @@map("IBOT_auth_identity")
+}
+
+model AuthSession {
+  id                   Uuid      @id @default(uuid())
+  authIdentityId       Uuid      @map("auth_identity_id")
+  personId             Uuid      @map("person_id")
+  deviceRegistrationId Uuid?     @map("device_registration_id")
+  sessionTokenHash     VarChar(256)? @map("session_token_hash")
+  refreshTokenHash     VarChar(256)? @unique @map("refresh_token_hash")
+  ipAddress            Inet?     @map("ip_address")
+  userAgent            Text?     @map("user_agent")
+  issuedAt             Timestamptz @default(now()) @map("issued_at")
+  expiresAt            Timestamptz @map("expires_at")
+  lastSeenAt           Timestamptz? @map("last_seen_at")
+  revokedAt            Timestamptz? @map("revoked_at")
+  revokeReason         VarChar(240)? @map("revoke_reason")
+
+  authIdentity         AuthIdentity @relation(fields: [authIdentityId], references: [id])
+  person               Person       @relation(fields: [personId], references: [id])
+
+  @@map("IBOT_auth_session")
+}
+
+model Workspace {
+  id                Uuid      @id @default(uuid())
+  workspaceType     VarChar(30) @map("workspace_type")
+  displayName       VarChar(200) @map("display_name")
+  ownerPersonId     Uuid?     @map("owner_person_id")
+  status            VarChar(30) @map("status")
+  createdAt         Timestamptz @default(now()) @map("created_at")
+  createdByPersonId Uuid?     @map("created_by_person_id")
+  updatedAt         Timestamptz @default(temporal.updatedAt()) @map("updated_at")
+  updatedByPersonId Uuid?     @map("updated_by_person_id")
+  rowVersion        BigInt    @default(1) @map("row_version")
+
+  memberships       WorkspaceMembership[]
+  organization      Organization?
+
+  @@map("IBOT_workspace")
+}
+
+model WorkspaceMembership {
+  id                Uuid      @id @default(uuid())
+  workspaceId       Uuid      @map("workspace_id")
+  personId          Uuid      @map("person_id")
+  status            VarChar(30) @map("status")
+  joinedAt          Timestamptz? @map("joined_at")
+  suspendedAt       Timestamptz? @map("suspended_at")
+  endedAt           Timestamptz? @map("ended_at")
+  createdAt         Timestamptz @default(now()) @map("created_at")
+  createdByPersonId Uuid?     @map("created_by_person_id")
+  updatedAt         Timestamptz @default(temporal.updatedAt()) @map("updated_at")
+  updatedByPersonId Uuid?     @map("updated_by_person_id")
+  rowVersion        BigInt    @default(1) @map("row_version")
+
+  workspace         Workspace @relation(fields: [workspaceId], references: [id])
+  person            Person    @relation(fields: [personId], references: [id])
+
+  @@map("IBOT_workspace_membership")
+}
+
+// -----------------------------------------------------------------------------
+// Core Product Domain
+// -----------------------------------------------------------------------------
+
+model Organization {
+  id                   Uuid      @id @default(uuid())
+  workspaceId          Uuid      @unique @map("workspace_id")
+  organizationType     VarChar(30) @map("organization_type")
+  organizationCode     VarChar(80) @map("organization_code")
+  legalName            VarChar(240)? @map("legal_name")
+  displayName          VarChar(240) @map("display_name")
+  slug                 VarChar(160) @unique
+  status               VarChar(30) @map("status")
+  countryCode          Char(2)?    @map("country_code")
+  timezone             VarChar(80)
+  defaultCurrency      Char(3)?    @map("default_currency")
+  dataRegion           VarChar(80)? @map("data_region")
+  approvedAt           Timestamptz? @map("approved_at")
+  approvedByPersonId   Uuid?     @map("approved_by_person_id")
+  suspendedAt          Timestamptz? @map("suspended_at")
+  suspendedByPersonId  Uuid?     @map("suspended_by_person_id")
+  createdAt            Timestamptz @default(now()) @map("created_at")
+  createdByPersonId    Uuid?     @map("created_by_person_id")
+  updatedAt            Timestamptz @default(temporal.updatedAt()) @map("updated_at")
+  updatedByPersonId    Uuid?     @map("updated_by_person_id")
+  rowVersion           BigInt    @default(1) @map("row_version")
+
+  workspace            Workspace @relation(fields: [workspaceId], references: [id])
+  projects             Project[]
+
+  @@map("IBOT_organization")
+}
+
+model Project {
+  id                Uuid      @id @default(uuid())
+  organizationId    Uuid      @map("organization_id")
+  projectCode       VarChar(100) @map("project_code")
+  canonicalName     VarChar(240) @map("canonical_name")
+  description       Text?
+  objective         Text?
+  status            VarChar(30) @map("status")
+  visibility        VarChar(30) @map("visibility")
+  startedAt         Timestamptz? @map("started_at")
+  closedAt          Timestamptz? @map("closed_at")
+  createdAt         Timestamptz @default(now()) @map("created_at")
+  createdByPersonId Uuid?     @map("created_by_person_id")
+  updatedAt         Timestamptz @default(temporal.updatedAt()) @map("updated_at")
+  updatedByPersonId Uuid?     @map("updated_by_person_id")
+  rowVersion        BigInt    @default(1) @map("row_version")
+
+  organization      Organization @relation(fields: [organizationId], references: [id])
+
+  @@map("IBOT_project")
+}

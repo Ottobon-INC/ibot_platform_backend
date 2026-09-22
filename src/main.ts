@@ -8,10 +8,8 @@ async function bootstrap() {
     new FastifyAdapter()
   );
   
-  // Setup global prefix and CORS for the frontend
-  app.setGlobalPrefix('api/v1');
+  // Setup CORS for the frontend
   app.enableCors();
-  
   await app.listen(3000, '0.0.0.0');
   console.log(`Application is running on: ${await app.getUrl()}`);
 }

@@ -7,20 +7,166 @@ datasource db {
   url      = env("DATABASE_URL")
 }
 
+// -----------------------------------------------------------------------------
+// Identity and Access Management
+// -----------------------------------------------------------------------------
+
+model Person {
+  id                   String    @id @default(uuid()) @db.Uuid
+  displayName          String    @map("display_name") @db.VarChar(200)
+  status               String    @map("status") @db.VarChar(30)
+  mergedIntoPersonId   String?   @map("merged_into_person_id") @db.Uuid
+  lastActivityAt       DateTime? @map("last_activity_at") @db.Timestamptz
+  createdAt            DateTime  @default(now()) @map("created_at") @db.Timestamptz
+  createdByPersonId    String?   @map("created_by_person_id") @db.Uuid
+  updatedAt            DateTime  @updatedAt @map("updated_at") @db.Timestamptz
+  updatedByPersonId    String?   @map("updated_by_person_id") @db.Uuid
+  rowVersion           BigInt    @default(1) @map("row_version")
+
+  // Relations
+  authIdentities       AuthIdentity[]
+  authSessions         AuthSession[]
+  workspaceMemberships WorkspaceMembership[]
+
+  @@map("IBOT_person")
+}
+
+model AuthIdentity {
+  id                        String    @id @default(uuid()) @db.Uuid
+  personId                  String    @map("person_id") @db.Uuid
+  providerType              String    @map("provider_type") @db.VarChar(30) // LOCAL, OIDC, SAML, OTHER
+  providerName              String    @map("provider_name") @db.VarChar(80)
+  providerSubject           String?   @map("provider_subject") @db.VarChar(320)
+  loginIdentifierNormalized String?   @unique @map("login_identifier_normalized") @db.VarChar(320)
+  passwordHash              String?   @map("password_hash") @db.Text
+  status                    String    @map("status") @db.VarChar(30)
+  emailVerifiedAt           DateTime? @map("email_verified_at") @db.Timestamptz
+  failedLoginCount          Int       @default(0) @map("failed_login_count")
+  lockedUntil               DateTime? @map("locked_until") @db.Timestamptz
+  lastLoginAt               DateTime? @map("last_login_at") @db.Timestamptz
+  disabledAt                DateTime? @map("disabled_at") @db.Timestamptz
+  createdAt                 DateTime  @default(now()) @map("created_at") @db.Timestamptz
+  createdByPersonId         String?   @map("created_by_person_id") @db.Uuid
+  updatedAt                 DateTime  @updatedAt @map("updated_at") @db.Timestamptz
+  updatedByPersonId         String?   @map("updated_by_person_id") @db.Uuid
+  rowVersion                BigInt    @default(1) @map("row_version")
+
+  person                    Person        @relation(fields: [personId], references: [id])
+  sessions                  AuthSession[]
+
+  @@map("IBOT_auth_identity")
+}
+
+model AuthSession {
+  id                   String    @id @default(uuid()) @db.Uuid
+  authIdentityId       String    @map("auth_identity_id") @db.Uuid
+  personId             String    @map("person_id") @db.Uuid
+  deviceRegistrationId String?   @map("device_registration_id") @db.Uuid
+  sessionTokenHash     String?   @map("session_token_hash") @db.VarChar(256)
+  refreshTokenHash     String?   @unique @map("refresh_token_hash") @db.VarChar(256)
+  ipAddress            String?   @map("ip_address") @db.Inet
+  userAgent            String?   @map("user_agent") @db.Text
+  issuedAt             DateTime  @default(now()) @map("issued_at") @db.Timestamptz
+  expiresAt            DateTime  @map("expires_at") @db.Timestamptz
+  lastSeenAt           DateTime? @map("last_seen_at") @db.Timestamptz
+  revokedAt            DateTime? @map("revoked_at") @db.Timestamptz
+  revokeReason         String?   @map("revoke_reason") @db.VarChar(240)
+
+  authIdentity         AuthIdentity @relation(fields: [authIdentityId], references: [id])
+  person               Person       @relation(fields: [personId], references: [id])
+
+  @@map("IBOT_auth_session")
+}
+
+model Workspace {
+  id                String    @id @default(uuid()) @db.Uuid
+  workspaceType     String    @map("workspace_type") @db.VarChar(30) // OTTOBON, ORGANIZATION, INDIVIDUAL
+  displayName       String    @map("display_name") @db.VarChar(200)
+  ownerPersonId     String?   @map("owner_person_id") @db.Uuid
+  status            String    @map("status") @db.VarChar(30)
+  createdAt         DateTime  @default(now()) @map("created_at") @db.Timestamptz
+  createdByPersonId String?   @map("created_by_person_id") @db.Uuid
+  updatedAt         DateTime  @updatedAt @map("updated_at") @db.Timestamptz
+  updatedByPersonId String?   @map("updated_by_person_id") @db.Uuid
+  rowVersion        BigInt    @default(1) @map("row_version")
+
+  memberships       WorkspaceMembership[]
+  organization      Organization?
+
+  @@map("IBOT_workspace")
+}
+
+model WorkspaceMembership {
+  id                String    @id @default(uuid()) @db.Uuid
+  workspaceId       String    @map("workspace_id") @db.Uuid
+  personId          String    @map("person_id") @db.Uuid
+  status            String    @map("status") @db.VarChar(30)
+  joinedAt          DateTime? @map("joined_at") @db.Timestamptz
+  suspendedAt       DateTime? @map("suspended_at") @db.Timestamptz
+  endedAt           DateTime? @map("ended_at") @db.Timestamptz
+  createdAt         DateTime  @default(now()) @map("created_at") @db.Timestamptz
+  createdByPersonId String?   @map("created_by_person_id") @db.Uuid
+  updatedAt         DateTime  @updatedAt @map("updated_at") @db.Timestamptz
+  updatedByPersonId String?   @map("updated_by_person_id") @db.Uuid
+  rowVersion        BigInt    @default(1) @map("row_version")
+
+  workspace         Workspace @relation(fields: [workspaceId], references: [id])
+  person            Person    @relation(fields: [personId], references: [id])
+
+  @@map("IBOT_workspace_membership")
+}
+
+// -----------------------------------------------------------------------------
+// Core Product Domain
+// -----------------------------------------------------------------------------
+
 model Organization {
-  id        String   @id @default(cuid())
-  name      String
-  createdAt DateTime @default(now())
-  updatedAt DateTime @updatedAt
-  
-  projects  Project[]
+  id                   String    @id @default(uuid()) @db.Uuid
+  workspaceId          String    @unique @map("workspace_id") @db.Uuid
+  organizationType     String    @map("organization_type") @db.VarChar(30) // ENTERPRISE, ACADEMY
+  organizationCode     String    @map("organization_code") @db.VarChar(80)
+  legalName            String?   @map("legal_name") @db.VarChar(240)
+  displayName          String    @map("display_name") @db.VarChar(240)
+  slug                 String    @unique @db.VarChar(160)
+  status               String    @map("status") @db.VarChar(30)
+  countryCode          String?   @map("country_code") @db.Char(2)
+  timezone             String    @db.VarChar(80)
+  defaultCurrency      String?   @map("default_currency") @db.Char(3)
+  dataRegion           String?   @map("data_region") @db.VarChar(80)
+  approvedAt           DateTime? @map("approved_at") @db.Timestamptz
+  approvedByPersonId   String?   @map("approved_by_person_id") @db.Uuid
+  suspendedAt          DateTime? @map("suspended_at") @db.Timestamptz
+  suspendedByPersonId  String?   @map("suspended_by_person_id") @db.Uuid
+  createdAt            DateTime  @default(now()) @map("created_at") @db.Timestamptz
+  createdByPersonId    String?   @map("created_by_person_id") @db.Uuid
+  updatedAt            DateTime  @updatedAt @map("updated_at") @db.Timestamptz
+  updatedByPersonId    String?   @map("updated_by_person_id") @db.Uuid
+  rowVersion           BigInt    @default(1) @map("row_version")
+
+  workspace            Workspace @relation(fields: [workspaceId], references: [id])
+  projects             Project[]
+
+  @@map("IBOT_organization")
 }
 
 model Project {
-  id             String       @id @default(cuid())
-  name           String
-  organizationId String
-  organization   Organization @relation(fields: [organizationId], references: [id])
-  createdAt      DateTime     @default(now())
-  updatedAt      DateTime     @updatedAt
+  id                String    @id @default(uuid()) @db.Uuid
+  organizationId    String    @map("organization_id") @db.Uuid
+  projectCode       String    @map("project_code") @db.VarChar(100)
+  canonicalName     String    @map("canonical_name") @db.VarChar(240)
+  description       String?   @db.Text
+  objective         String?   @db.Text
+  status            String    @map("status") @db.VarChar(30)
+  visibility        String    @map("visibility") @db.VarChar(30)
+  startedAt         DateTime? @map("started_at") @db.Timestamptz
+  closedAt          DateTime? @map("closed_at") @db.Timestamptz
+  createdAt         DateTime  @default(now()) @map("created_at") @db.Timestamptz
+  createdByPersonId String?   @map("created_by_person_id") @db.Uuid
+  updatedAt         DateTime  @updatedAt @map("updated_at") @db.Timestamptz
+  updatedByPersonId String?   @map("updated_by_person_id") @db.Uuid
+  rowVersion        BigInt    @default(1) @map("row_version")
+
+  organization      Organization @relation(fields: [organizationId], references: [id])
+
+  @@map("IBOT_project")
 }
