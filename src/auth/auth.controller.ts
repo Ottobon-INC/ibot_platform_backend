@@ -9,8 +9,22 @@ export class AuthController {
   @Post('register')
   async register(@Body() body: any) {
     // In a real implementation, use DTOs
-    const { email, password, firstName, lastName } = body;
-    return this.authService.register(email, password, firstName, lastName);
+    const { email, password, firstName, lastName, accountType, organizationDetails } = body;
+    return this.authService.register(email, password, firstName, lastName, accountType, organizationDetails);
+  }
+
+  @Post('send-otp')
+  @HttpCode(HttpStatus.OK)
+  async sendOtp(@Body() body: any) {
+    const { email } = body;
+    return this.authService.sendOtp(email);
+  }
+
+  @Post('verify-email')
+  @HttpCode(HttpStatus.OK)
+  async verifyEmail(@Body() body: any) {
+    const { email, code } = body;
+    return this.authService.verifyEmail(email, code);
   }
 
   @Post('login')
