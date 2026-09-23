@@ -1,14 +1,19 @@
 import { Injectable, OnModuleInit, OnModuleDestroy } from '@nestjs/common';
+import { PrismaClient } from '@prisma/client';
 
 @Injectable()
-export class DatabaseService implements OnModuleInit, OnModuleDestroy {
-  constructor() {}
+export class DatabaseService extends PrismaClient implements OnModuleInit, OnModuleDestroy {
+  constructor() {
+    super();
+  }
 
   async onModuleInit() {
-    console.log('Mock DB Connected');
+    await this.$connect();
+    console.log('Prisma DB Connected');
   }
 
   async onModuleDestroy() {
-    console.log('Mock DB Disconnected');
+    await this.$disconnect();
+    console.log('Prisma DB Disconnected');
   }
 }
