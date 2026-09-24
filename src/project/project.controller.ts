@@ -12,6 +12,11 @@ export class ProjectController {
     return this.projectService.getDashboardMetrics(orgId);
   }
 
+  @Get('runs')
+  async listRuns(@Query('orgId') orgId: string) {
+    return this.projectService.listRuns(orgId);
+  }
+
   @Get()
   async listProjects(@Query('orgId') orgId: string) {
     return this.projectService.listProjects(orgId);
@@ -25,5 +30,10 @@ export class ProjectController {
   @Get(':id')
   async getProjectDetails(@Param('id') id: string) {
     return this.projectService.getProjectDetails(id);
+  }
+
+  @Post(':id/runs')
+  async createProjectRun(@Param('id') id: string, @Body() body: any) {
+    return this.projectService.createProjectRun(id, body);
   }
 }

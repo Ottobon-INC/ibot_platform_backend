@@ -59,6 +59,31 @@ export class ProjectService {
     });
   }
 
+  async listRuns(orgId: string) {
+    let targetOrgId = orgId;
+    if (!targetOrgId || targetOrgId === 'default') {
+      const firstOrg = await this.db.organization.findFirst({
+        where: { status: 'ACTIVE' }
+      });
+      if (!firstOrg) return [];
+      targetOrgId = firstOrg.id;
+    }
+
+    return this.db.projectRun.findMany({
+      where: {
+        project: {
+          organizationId: targetOrgId
+        }
+      },
+      include: {
+        project: true
+      },
+      orderBy: {
+        updatedAt: 'desc'
+      }
+    });
+  }
+
   async createProject(data: { orgId: string, name: string, description?: string }) {
     let targetOrgId = data.orgId;
     if (!targetOrgId || targetOrgId === 'default') {
@@ -95,5 +120,41 @@ export class ProjectService {
 
     if (!project) throw new NotFoundException("Project not found");
     return project;
+  }
+
+  async createProjectRun(projectId: string, data: any) {
+    const project = await this.db.project.findUnique({
+      where: { id: projectId }
+    });
+
+    if (!project) {
+      throw new NotFoundException("Project not found");
+    }
+
+    const runCode = data.displayName.substring(0, 3).toUpperCase() + '-' + Math.floor(1000 + Math.random() * 9000);
+
+    // Get the current highest sequence number for runs in this project
+    const maxSeq = await this.db.projectRun.aggregate({
+      where: { projectId },
+      _max: { sequenceNo: true }
+    });
+    const nextSeq = (maxSeq._max.sequenceNo || 0) + 1;
+
+    return this.db.projectRun.create({
+      data: {
+        organizationId: project.organizationId,
+        projectId,
+        runCode,
+        displayName: data.displayName,
+        sequenceNo: nextSeq,
+        status: 'DRAFT', // Starts as draft configuration
+        visibility: 'PRIVATE',
+        targetParticipantCount: data.targetParticipantCount || null,
+        plannedStartAt: data.plannedStartAt ? new Date(data.plannedStartAt) : null,
+        plannedEndAt: data.plannedEndAt ? new Date(data.plannedEndAt) : null,
+        copiedFromRunId: data.sourceType === 'previous' ? data.sourceId : null,
+        // we'd eventually copy the actual configuration snapshot here if it was 'previous' or 'blueprint'
+      }
+    });
   }
 }
