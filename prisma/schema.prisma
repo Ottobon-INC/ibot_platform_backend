@@ -3,8 +3,9 @@ generator client {
 }
 
 datasource db {
-  provider = "postgresql"
-  url      = env("DATABASE_URL")
+  provider  = "postgresql"
+  url       = env("DATABASE_URL")
+  directUrl = env("DIRECT_URL")
 }
 
 // -----------------------------------------------------------------------------
@@ -145,6 +146,7 @@ model Organization {
 
   workspace            Workspace @relation(fields: [workspaceId], references: [id])
   projects             Project[]
+  runs                 ProjectRun[]
 
   @@map("IBOT_organization")
 }
@@ -167,6 +169,41 @@ model Project {
   rowVersion        BigInt    @default(1) @map("row_version")
 
   organization      Organization @relation(fields: [organizationId], references: [id])
+  runs              ProjectRun[]
 
   @@map("IBOT_project")
+}
+
+model ProjectRun {
+  id                       String    @id @default(uuid()) @db.Uuid
+  organizationId           String    @map("organization_id") @db.Uuid
+  projectId                String    @map("project_id") @db.Uuid
+  runCode                  String    @map("run_code") @db.VarChar(100)
+  displayName              String    @map("display_name") @db.VarChar(260)
+  description              String?   @db.Text
+  sequenceNo               Int       @map("sequence_no")
+  status                   String    @map("status") @db.VarChar(30)
+  visibility               String    @map("visibility") @db.VarChar(30)
+  targetParticipantCount   Int?      @map("target_participant_count")
+  applicationOpenAt        DateTime? @map("application_open_at") @db.Timestamptz
+  applicationCloseAt       DateTime? @map("application_close_at") @db.Timestamptz
+  plannedStartAt           DateTime? @map("planned_start_at") @db.Timestamptz
+  plannedEndAt             DateTime? @map("planned_end_at") @db.Timestamptz
+  actualStartAt            DateTime? @map("actual_start_at") @db.Timestamptz
+  actualEndAt              DateTime? @map("actual_end_at") @db.Timestamptz
+  activeSetupVersionId     String?   @map("active_setup_version_id") @db.Uuid
+  copiedFromRunId          String?   @map("copied_from_run_id") @db.Uuid
+  blueprintVersionId       String?   @map("blueprint_version_id") @db.Uuid
+  publishedAt              DateTime? @map("published_at") @db.Timestamptz
+  closedAt                 DateTime? @map("closed_at") @db.Timestamptz
+  createdAt                DateTime  @default(now()) @map("created_at") @db.Timestamptz
+  createdByPersonId        String?   @map("created_by_person_id") @db.Uuid
+  updatedAt                DateTime  @updatedAt @map("updated_at") @db.Timestamptz
+  updatedByPersonId        String?   @map("updated_by_person_id") @db.Uuid
+  rowVersion               BigInt    @default(1) @map("row_version")
+
+  project                  Project   @relation(fields: [projectId], references: [id])
+  organization             Organization @relation(fields: [organizationId], references: [id])
+
+  @@map("IBOT_project_run")
 }

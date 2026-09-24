@@ -4,6 +4,11 @@ import { AppModule } from './app.module';
 
 import fastifyCookie from '@fastify/cookie';
 
+// Patch BigInt for JSON serialization (Prisma returns BigInt for some fields)
+(BigInt.prototype as any).toJSON = function () {
+  return this.toString();
+};
+
 async function bootstrap() {
   const app = await NestFactory.create<NestFastifyApplication>(
     AppModule,
