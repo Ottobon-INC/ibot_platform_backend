@@ -12,6 +12,11 @@ export class ProjectController {
     return this.projectService.getDashboardMetrics(orgId);
   }
 
+  @Get('runs')
+  async listRuns(@Query('orgId') orgId: string) {
+    return this.projectService.listRuns(orgId);
+  }
+
   @Get()
   async listProjects(@Query('orgId') orgId: string) {
     return this.projectService.listProjects(orgId);

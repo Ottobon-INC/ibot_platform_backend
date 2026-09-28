@@ -59,6 +59,31 @@ export class ProjectService {
     });
   }
 
+  async listRuns(orgId: string) {
+    let targetOrgId = orgId;
+    if (!targetOrgId || targetOrgId === 'default') {
+      const firstOrg = await this.db.organization.findFirst({
+        where: { status: 'ACTIVE' }
+      });
+      if (!firstOrg) return [];
+      targetOrgId = firstOrg.id;
+    }
+
+    return this.db.projectRun.findMany({
+      where: {
+        project: {
+          organizationId: targetOrgId
+        }
+      },
+      include: {
+        project: true
+      },
+      orderBy: {
+        updatedAt: 'desc'
+      }
+    });
+  }
+
   async createProject(data: { orgId: string, name: string, description?: string }) {
     let targetOrgId = data.orgId;
     if (!targetOrgId || targetOrgId === 'default') {
