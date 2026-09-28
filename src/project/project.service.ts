@@ -136,7 +136,8 @@ export class ProjectService {
     description?: string,
     targetParticipantCount?: number,
     plannedStartAt?: Date,
-    plannedEndAt?: Date
+    plannedEndAt?: Date,
+    enabledPhases?: string[]
   }) {
     const project = await this.db.project.findUnique({
       where: { id: projectId }
@@ -150,6 +151,25 @@ export class ProjectService {
 
     const sequenceNo = count + 1;
     const runCode = `${project.projectCode}-R${sequenceNo}`;
+
+    const requestedPhases = (data.enabledPhases && data.enabledPhases.length > 0)
+      ? data.enabledPhases
+      : ['IDENTIFY', 'BUILD', 'OPERATE', 'TRANSFER'];
+
+    const defaultOwnerships: Record<string, string> = {
+      IDENTIFY: 'ORGANIZATION',
+      BUILD: 'OTTOBON',
+      OPERATE: 'SHARED',
+      TRANSFER: 'ORGANIZATION'
+    };
+
+    const runPhasesToCreate = requestedPhases.map((phaseType, idx) => ({
+      organizationId: project.organizationId,
+      phaseType,
+      sequenceNo: idx + 1,
+      status: idx === 0 ? 'ACTIVE' : 'NOT_STARTED',
+      ownershipType: defaultOwnerships[phaseType] || 'ORGANIZATION'
+    }));
 
     return this.db.projectRun.create({
       data: {
@@ -177,38 +197,9 @@ export class ProjectService {
           }
         },
 
-        // Create default Journey Phases (IDENTIFY -> BUILD -> OPERATE -> TRANSFER)
+        // Create configured Journey Phases
         runPhases: {
-          create: [
-            {
-              organizationId: project.organizationId,
-              phaseType: 'IDENTIFY',
-              sequenceNo: 1,
-              status: 'ACTIVE',
-              ownershipType: 'ORGANIZATION'
-            },
-            {
-              organizationId: project.organizationId,
-              phaseType: 'BUILD',
-              sequenceNo: 2,
-              status: 'NOT_STARTED',
-              ownershipType: 'OTTOBON'
-            },
-            {
-              organizationId: project.organizationId,
-              phaseType: 'OPERATE',
-              sequenceNo: 3,
-              status: 'NOT_STARTED',
-              ownershipType: 'SHARED'
-            },
-            {
-              organizationId: project.organizationId,
-              phaseType: 'TRANSFER',
-              sequenceNo: 4,
-              status: 'NOT_STARTED',
-              ownershipType: 'ORGANIZATION'
-            }
-          ]
+          create: runPhasesToCreate
         }
       },
       include: {

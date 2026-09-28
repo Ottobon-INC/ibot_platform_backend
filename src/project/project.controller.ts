@@ -40,7 +40,8 @@ export class ProjectController {
       description?: string,
       targetParticipantCount?: number,
       plannedStartAt?: string,
-      plannedEndAt?: string
+      plannedEndAt?: string,
+      enabledPhases?: string[]
     }
   ) {
     return this.projectService.createProjectRun(projectId, {

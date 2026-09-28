@@ -30,6 +30,9 @@ model Person {
   projectAssignments   ProjectAssignment[]
   runAssignments       RunAssignment[]
   phaseAssignments     PhaseAssignment[]
+  runParticipations    RunParticipation[]
+  phaseParticipations  PhaseParticipation[]
+  handoverParticipants HandoverParticipant[]
 
   @@map("IBOT_person")
 }
@@ -210,6 +213,7 @@ model ProjectRun {
   setupVersions          ProjectRunSetupVersion[]
   runAssignments         RunAssignment[]
   runPhases               RunPhase[]
+  runParticipations      RunParticipation[]
 
   @@map("IBOT_project_run")
 }
@@ -310,6 +314,7 @@ model RunPhase {
   projectRun            ProjectRun              @relation(fields: [projectRunId], references: [id])
   configVersions        RunPhaseConfigVersion[]
   phaseAssignments      PhaseAssignment[]
+  phaseParticipations   PhaseParticipation[]
 
   @@map("IBOT_run_phase")
 }
@@ -359,4 +364,87 @@ model PhaseAssignment {
   person                Person    @relation(fields: [personId], references: [id])
 
   @@map("IBOT_phase_assignment")
+}
+
+model RunParticipation {
+  id                   String                @id @default(uuid()) @db.Uuid
+  organizationId       String                @map("organization_id") @db.Uuid
+  projectRunId         String                @map("project_run_id") @db.Uuid
+  personId             String                @map("person_id") @db.Uuid
+  status               String                @map("status") @db.VarChar(30)
+  enrolledAt           DateTime              @default(now()) @map("enrolled_at") @db.Timestamptz
+  createdAt            DateTime              @default(now()) @map("created_at") @db.Timestamptz
+  updatedAt            DateTime              @updatedAt @map("updated_at") @db.Timestamptz
+  rowVersion           BigInt                @default(1) @map("row_version")
+
+  projectRun           ProjectRun            @relation(fields: [projectRunId], references: [id])
+  person               Person                @relation(fields: [personId], references: [id])
+  phaseParticipations  PhaseParticipation[]
+  handoverParticipants HandoverParticipant[]
+
+  @@map("IBOT_run_participation")
+}
+
+model PhaseParticipation {
+  id                 String           @id @default(uuid()) @db.Uuid
+  organizationId     String           @map("organization_id") @db.Uuid
+  runPhaseId         String           @map("run_phase_id") @db.Uuid
+  runParticipationId String           @map("run_participation_id") @db.Uuid
+  personId           String           @map("person_id") @db.Uuid
+  status             String           @map("status") @db.VarChar(30)
+  intakeSourceType   String           @map("intake_source_type") @db.VarChar(40)
+  intakeHandoverId   String?          @map("intake_handover_id") @db.Uuid
+  enteredAt          DateTime         @default(now()) @map("entered_at") @db.Timestamptz
+  createdAt          DateTime         @default(now()) @map("created_at") @db.Timestamptz
+  updatedAt          DateTime         @updatedAt @map("updated_at") @db.Timestamptz
+  rowVersion         BigInt           @default(1) @map("row_version")
+
+  runPhase           RunPhase         @relation(fields: [runPhaseId], references: [id])
+  runParticipation   RunParticipation @relation(fields: [runParticipationId], references: [id])
+  person             Person           @relation(fields: [personId], references: [id])
+
+  @@map("IBOT_phase_participation")
+}
+
+model Handover {
+  id                  String                @id @default(uuid()) @db.Uuid
+  organizationId      String                @map("organization_id") @db.Uuid
+  projectRunId        String                @map("project_run_id") @db.Uuid
+  fromRunPhaseId      String                @map("from_run_phase_id") @db.Uuid
+  toRunPhaseId        String                @map("to_run_phase_id") @db.Uuid
+  status              String                @map("status") @db.VarChar(30)
+  title               String?               @db.VarChar(240)
+  reason              String?               @db.Text
+  initiatedByPersonId String                @map("initiated_by_person_id") @db.Uuid
+  acceptedByPersonId  String?               @map("accepted_by_person_id") @db.Uuid
+  sentAt              DateTime?             @map("sent_at") @db.Timestamptz
+  acceptedAt          DateTime?             @map("accepted_at") @db.Timestamptz
+  createdAt           DateTime              @default(now()) @map("created_at") @db.Timestamptz
+  updatedAt           DateTime              @updatedAt @map("updated_at") @db.Timestamptz
+  rowVersion          BigInt                @default(1) @map("row_version")
+
+  handoverParticipants HandoverParticipant[]
+
+  @@map("IBOT_handover")
+}
+
+model HandoverParticipant {
+  id                         String           @id @default(uuid()) @db.Uuid
+  organizationId             String           @map("organization_id") @db.Uuid
+  handoverId                 String           @map("handover_id") @db.Uuid
+  runParticipationId         String           @map("run_participation_id") @db.Uuid
+  sourcePhaseParticipationId String           @map("source_phase_participation_id") @db.Uuid
+  targetPhaseParticipationId String?          @map("target_phase_participation_id") @db.Uuid
+  validationStatus           String           @map("validation_status") @db.VarChar(30)
+  status                     String           @map("status") @db.VarChar(30)
+  selectedByPersonId         String           @map("selected_by_person_id") @db.Uuid
+  createdAt                  DateTime         @default(now()) @map("created_at") @db.Timestamptz
+  updatedAt                  DateTime         @updatedAt @map("updated_at") @db.Timestamptz
+  rowVersion                 BigInt           @default(1) @map("row_version")
+
+  handover                   Handover         @relation(fields: [handoverId], references: [id])
+  runParticipation           RunParticipation @relation(fields: [runParticipationId], references: [id])
+  person                     Person           @relation(fields: [selectedByPersonId], references: [id])
+
+  @@map("IBOT_handover_participant")
 }
