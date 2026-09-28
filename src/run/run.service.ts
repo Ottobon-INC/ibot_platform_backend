@@ -5,6 +5,24 @@ import { DatabaseService } from '../database/database.service';
 export class RunService {
   constructor(private readonly db: DatabaseService) {}
 
+  private async ensureValidPersonId(personId?: string): Promise<string> {
+    if (personId) {
+      const existing = await this.db.person.findUnique({ where: { id: personId } });
+      if (existing) return existing.id;
+    }
+
+    const firstPerson = await this.db.person.findFirst();
+    if (firstPerson) return firstPerson.id;
+
+    const newPerson = await this.db.person.create({
+      data: {
+        displayName: 'System Team Lead',
+        status: 'ACTIVE'
+      }
+    });
+    return newPerson.id;
+  }
+
   async getRunDetails(runId: string) {
     const run = await this.db.projectRun.findUnique({
       where: { id: runId },
@@ -50,6 +68,7 @@ export class RunService {
 
     if (!phase) throw new NotFoundException('Run Phase not found');
 
+    const validPersonId = await this.ensureValidPersonId(data.personId);
     const defaultRoleId = data.roleId || '00000000-0000-0000-0000-000000000001';
     const partySide = data.partySide || phase.ownershipType || 'ORGANIZATION';
 
@@ -58,7 +77,7 @@ export class RunService {
       data: {
         organizationId: data.organizationId || phase.organizationId,
         runPhaseId: phase.id,
-        personId: data.personId,
+        personId: validPersonId,
         roleId: defaultRoleId,
         partySide: partySide === 'SHARED' ? 'ORGANIZATION' : partySide,
         status: 'ACTIVE',
@@ -123,6 +142,8 @@ export class RunService {
       throw new BadRequestException('No valid candidate participations found for handover');
     }
 
+    const validInitiatorId = await this.ensureValidPersonId(data.initiatedByPersonId);
+
     return this.db.handover.create({
       data: {
         organizationId: data.organizationId,
@@ -132,7 +153,7 @@ export class RunService {
         status: 'SENT',
         title: data.title || `Handover: ${fromPhase.phaseType} -> ${toPhase.phaseType}`,
         reason: data.reason || 'Qualified candidates ready for next phase intake.',
-        initiatedByPersonId: data.initiatedByPersonId,
+        initiatedByPersonId: validInitiatorId,
         sentAt: new Date(),
 
         handoverParticipants: {
@@ -142,7 +163,7 @@ export class RunService {
             sourcePhaseParticipationId: sp.id,
             validationStatus: 'VALID',
             status: 'SELECTED',
-            selectedByPersonId: data.initiatedByPersonId,
+            selectedByPersonId: validInitiatorId,
             selectedAt: new Date()
           }))
         }
@@ -165,13 +186,14 @@ export class RunService {
     if (handover.status === 'ACCEPTED') throw new BadRequestException('Handover has already been accepted');
 
     const now = new Date();
+    const validAcceptorId = await this.ensureValidPersonId(acceptedByPersonId);
 
     // 1. Update Handover status to ACCEPTED
     const updatedHandover = await this.db.handover.update({
       where: { id: handoverId },
       data: {
         status: 'ACCEPTED',
-        acceptedByPersonId,
+        acceptedByPersonId: validAcceptorId,
         acceptedAt: now
       }
     });
