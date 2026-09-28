@@ -3,9 +3,8 @@ generator client {
 }
 
 datasource db {
-  provider  = "postgresql"
-  url       = env("DATABASE_URL")
-  directUrl = env("DIRECT_URL")
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
 }
 
 // -----------------------------------------------------------------------------
@@ -28,6 +27,9 @@ model Person {
   authIdentities       AuthIdentity[]
   authSessions         AuthSession[]
   workspaceMemberships WorkspaceMembership[]
+  projectAssignments   ProjectAssignment[]
+  runAssignments       RunAssignment[]
+  phaseAssignments     PhaseAssignment[]
 
   @@map("IBOT_person")
 }
@@ -152,58 +154,209 @@ model Organization {
 }
 
 model Project {
-  id                String    @id @default(uuid()) @db.Uuid
-  organizationId    String    @map("organization_id") @db.Uuid
-  projectCode       String    @map("project_code") @db.VarChar(100)
-  canonicalName     String    @map("canonical_name") @db.VarChar(240)
-  description       String?   @db.Text
-  objective         String?   @db.Text
-  status            String    @map("status") @db.VarChar(30)
-  visibility        String    @map("visibility") @db.VarChar(30)
-  startedAt         DateTime? @map("started_at") @db.Timestamptz
-  closedAt          DateTime? @map("closed_at") @db.Timestamptz
-  createdAt         DateTime  @default(now()) @map("created_at") @db.Timestamptz
-  createdByPersonId String?   @map("created_by_person_id") @db.Uuid
-  updatedAt         DateTime  @updatedAt @map("updated_at") @db.Timestamptz
-  updatedByPersonId String?   @map("updated_by_person_id") @db.Uuid
-  rowVersion        BigInt    @default(1) @map("row_version")
+  id                 String              @id @default(uuid()) @db.Uuid
+  organizationId     String              @map("organization_id") @db.Uuid
+  projectCode        String              @map("project_code") @db.VarChar(100)
+  canonicalName      String              @map("canonical_name") @db.VarChar(240)
+  description        String?             @db.Text
+  objective          String?             @db.Text
+  status             String              @map("status") @db.VarChar(30)
+  visibility         String              @map("visibility") @db.VarChar(30)
+  startedAt          DateTime?           @map("started_at") @db.Timestamptz
+  closedAt           DateTime?           @map("closed_at") @db.Timestamptz
+  createdAt          DateTime            @default(now()) @map("created_at") @db.Timestamptz
+  createdByPersonId  String?             @map("created_by_person_id") @db.Uuid
+  updatedAt          DateTime            @updatedAt @map("updated_at") @db.Timestamptz
+  updatedByPersonId  String?             @map("updated_by_person_id") @db.Uuid
+  rowVersion         BigInt              @default(1) @map("row_version")
 
-  organization      Organization @relation(fields: [organizationId], references: [id])
-  runs              ProjectRun[]
+  organization       Organization        @relation(fields: [organizationId], references: [id])
+  runs               ProjectRun[]
+  projectAssignments ProjectAssignment[]
 
   @@map("IBOT_project")
 }
 
 model ProjectRun {
-  id                       String    @id @default(uuid()) @db.Uuid
-  organizationId           String    @map("organization_id") @db.Uuid
-  projectId                String    @map("project_id") @db.Uuid
-  runCode                  String    @map("run_code") @db.VarChar(100)
-  displayName              String    @map("display_name") @db.VarChar(260)
-  description              String?   @db.Text
-  sequenceNo               Int       @map("sequence_no")
-  status                   String    @map("status") @db.VarChar(30)
-  visibility               String    @map("visibility") @db.VarChar(30)
-  targetParticipantCount   Int?      @map("target_participant_count")
-  applicationOpenAt        DateTime? @map("application_open_at") @db.Timestamptz
-  applicationCloseAt       DateTime? @map("application_close_at") @db.Timestamptz
-  plannedStartAt           DateTime? @map("planned_start_at") @db.Timestamptz
-  plannedEndAt             DateTime? @map("planned_end_at") @db.Timestamptz
-  actualStartAt            DateTime? @map("actual_start_at") @db.Timestamptz
-  actualEndAt              DateTime? @map("actual_end_at") @db.Timestamptz
-  activeSetupVersionId     String?   @map("active_setup_version_id") @db.Uuid
-  copiedFromRunId          String?   @map("copied_from_run_id") @db.Uuid
-  blueprintVersionId       String?   @map("blueprint_version_id") @db.Uuid
-  publishedAt              DateTime? @map("published_at") @db.Timestamptz
-  closedAt                 DateTime? @map("closed_at") @db.Timestamptz
-  createdAt                DateTime  @default(now()) @map("created_at") @db.Timestamptz
-  createdByPersonId        String?   @map("created_by_person_id") @db.Uuid
-  updatedAt                DateTime  @updatedAt @map("updated_at") @db.Timestamptz
-  updatedByPersonId        String?   @map("updated_by_person_id") @db.Uuid
-  rowVersion               BigInt    @default(1) @map("row_version")
+  id                     String                   @id @default(uuid()) @db.Uuid
+  organizationId         String                   @map("organization_id") @db.Uuid
+  projectId              String                   @map("project_id") @db.Uuid
+  runCode                String                   @map("run_code") @db.VarChar(100)
+  displayName            String                   @map("display_name") @db.VarChar(260)
+  description            String?                  @db.Text
+  sequenceNo             Int                      @map("sequence_no")
+  status                 String                   @map("status") @db.VarChar(30)
+  visibility             String                   @map("visibility") @db.VarChar(30)
+  targetParticipantCount Int?                     @map("target_participant_count")
+  applicationOpenAt      DateTime?                @map("application_open_at") @db.Timestamptz
+  applicationCloseAt     DateTime?                @map("application_close_at") @db.Timestamptz
+  plannedStartAt         DateTime?                @map("planned_start_at") @db.Timestamptz
+  plannedEndAt           DateTime?                @map("planned_end_at") @db.Timestamptz
+  actualStartAt          DateTime?                @map("actual_start_at") @db.Timestamptz
+  actualEndAt            DateTime?                @map("actual_end_at") @db.Timestamptz
+  activeSetupVersionId   String?                  @map("active_setup_version_id") @db.Uuid
+  copiedFromRunId        String?                  @map("copied_from_run_id") @db.Uuid
+  blueprintVersionId     String?                  @map("blueprint_version_id") @db.Uuid
+  publishedAt            DateTime?                @map("published_at") @db.Timestamptz
+  closedAt               DateTime?                @map("closed_at") @db.Timestamptz
+  createdAt              DateTime                 @default(now()) @map("created_at") @db.Timestamptz
+  createdByPersonId      String?                  @map("created_by_person_id") @db.Uuid
+  updatedAt              DateTime                 @updatedAt @map("updated_at") @db.Timestamptz
+  updatedByPersonId      String?                  @map("updated_by_person_id") @db.Uuid
+  rowVersion             BigInt                   @default(1) @map("row_version")
 
-  project                  Project   @relation(fields: [projectId], references: [id])
-  organization             Organization @relation(fields: [organizationId], references: [id])
+  project                Project                  @relation(fields: [projectId], references: [id])
+  organization           Organization             @relation(fields: [organizationId], references: [id])
+  setupVersions          ProjectRunSetupVersion[]
+  runAssignments         RunAssignment[]
+  runPhases               RunPhase[]
 
   @@map("IBOT_project_run")
+}
+
+model ProjectRunSetupVersion {
+  id                         String     @id @default(uuid()) @db.Uuid
+  organizationId             String     @map("organization_id") @db.Uuid
+  projectRunId               String     @map("project_run_id") @db.Uuid
+  versionNo                  Int        @map("version_no")
+  status                     String     @map("status") @db.VarChar(30)
+  entryPolicyJson            Json?      @map("entry_policy_json")
+  participantFieldSchemaJson Json?      @map("participant_field_schema_json")
+  handoverPolicyJson         Json?      @map("handover_policy_json")
+  notificationPolicyJson     Json?      @map("notification_policy_json")
+  configurationJson          Json?      @map("configuration_json")
+  changeSummary              String?    @map("change_summary") @db.Text
+  effectiveFrom              DateTime?  @map("effective_from") @db.Timestamptz
+  supersedesVersionId        String?    @map("supersedes_version_id") @db.Uuid
+  reviewedByPersonId         String?    @map("reviewed_by_person_id") @db.Uuid
+  reviewedAt                 DateTime?  @map("reviewed_at") @db.Timestamptz
+  approvedByPersonId         String?    @map("approved_by_person_id") @db.Uuid
+  approvedAt                 DateTime?  @map("approved_at") @db.Timestamptz
+  createdAt                  DateTime   @default(now()) @map("created_at") @db.Timestamptz
+  createdByPersonId          String?    @map("created_by_person_id") @db.Uuid
+
+  projectRun                 ProjectRun @relation(fields: [projectRunId], references: [id])
+
+  @@map("IBOT_project_run_setup_version")
+}
+
+model ProjectAssignment {
+  id                    String    @id @default(uuid()) @db.Uuid
+  organizationId        String    @map("organization_id") @db.Uuid
+  projectId             String    @map("project_id") @db.Uuid
+  personId              String    @map("person_id") @db.Uuid
+  workspaceMembershipId String?   @map("workspace_membership_id") @db.Uuid
+  roleId                String    @map("role_id") @db.Uuid
+  partySide             String    @map("party_side") @db.VarChar(20) // ORGANIZATION, OTTOBON
+  status                String    @map("status") @db.VarChar(30)
+  effectiveFrom         DateTime? @map("effective_from") @db.Timestamptz
+  effectiveUntil        DateTime? @map("effective_until") @db.Timestamptz
+  assignedByPersonId    String?   @map("assigned_by_person_id") @db.Uuid
+  createdAt             DateTime  @default(now()) @map("created_at") @db.Timestamptz
+  updatedAt             DateTime  @updatedAt @map("updated_at") @db.Timestamptz
+  rowVersion            BigInt    @default(1) @map("row_version")
+
+  project               Project   @relation(fields: [projectId], references: [id])
+  person                Person    @relation(fields: [personId], references: [id])
+
+  @@map("IBOT_project_assignment")
+}
+
+model RunAssignment {
+  id                    String     @id @default(uuid()) @db.Uuid
+  organizationId        String     @map("organization_id") @db.Uuid
+  projectRunId          String     @map("project_run_id") @db.Uuid
+  personId              String     @map("person_id") @db.Uuid
+  workspaceMembershipId String?    @map("workspace_membership_id") @db.Uuid
+  roleId                String     @map("role_id") @db.Uuid
+  partySide             String     @map("party_side") @db.VarChar(20) // ORGANIZATION, OTTOBON
+  status                String     @map("status") @db.VarChar(30)
+  effectiveFrom         DateTime?  @map("effective_from") @db.Timestamptz
+  effectiveUntil        DateTime?  @map("effective_until") @db.Timestamptz
+  assignedByPersonId    String?    @map("assigned_by_person_id") @db.Uuid
+  createdAt             DateTime   @default(now()) @map("created_at") @db.Timestamptz
+  updatedAt             DateTime   @updatedAt @map("updated_at") @db.Timestamptz
+  rowVersion            BigInt     @default(1) @map("row_version")
+
+  projectRun            ProjectRun @relation(fields: [projectRunId], references: [id])
+  person                Person     @relation(fields: [personId], references: [id])
+
+  @@map("IBOT_run_assignment")
+}
+
+model RunPhase {
+  id                    String                  @id @default(uuid()) @db.Uuid
+  organizationId        String                  @map("organization_id") @db.Uuid
+  projectRunId          String                  @map("project_run_id") @db.Uuid
+  phaseType             String                  @map("phase_type") @db.VarChar(20) // IDENTIFY, BUILD, OPERATE, TRANSFER
+  sequenceNo            Int                     @map("sequence_no")
+  status                String                  @map("status") @db.VarChar(30)
+  ownershipType         String                  @map("ownership_type") @db.VarChar(20) // ORGANIZATION, OTTOBON, SHARED
+  capacity              Int?                    @map("capacity")
+  plannedStartAt        DateTime?               @map("planned_start_at") @db.Timestamptz
+  plannedEndAt          DateTime?               @map("planned_end_at") @db.Timestamptz
+  actualStartAt         DateTime?               @map("actual_start_at") @db.Timestamptz
+  actualEndAt           DateTime?               @map("actual_end_at") @db.Timestamptz
+  activeConfigVersionId String?                 @map("active_config_version_id") @db.Uuid
+  startedByPersonId     String?                 @map("started_by_person_id") @db.Uuid
+  completedByPersonId   String?                 @map("completed_by_person_id") @db.Uuid
+  holdReason            String?                 @map("hold_reason") @db.Text
+  createdAt             DateTime                @default(now()) @map("created_at") @db.Timestamptz
+  createdByPersonId     String?                 @map("created_by_person_id") @db.Uuid
+  updatedAt             DateTime                @updatedAt @map("updated_at") @db.Timestamptz
+  updatedByPersonId     String?                 @map("updated_by_person_id") @db.Uuid
+  rowVersion            BigInt                  @default(1) @map("row_version")
+
+  projectRun            ProjectRun              @relation(fields: [projectRunId], references: [id])
+  configVersions        RunPhaseConfigVersion[]
+  phaseAssignments      PhaseAssignment[]
+
+  @@map("IBOT_run_phase")
+}
+
+model RunPhaseConfigVersion {
+  id                      String    @id @default(uuid()) @db.Uuid
+  organizationId          String    @map("organization_id") @db.Uuid
+  runPhaseId              String    @map("run_phase_id") @db.Uuid
+  versionNo               Int       @map("version_no")
+  status                  String    @map("status") @db.VarChar(30)
+  configJson              Json      @map("config_json")
+  inputContractJson       Json?     @map("input_contract_json")
+  completionRuleJson      Json?     @map("completion_rule_json")
+  handoverEligibilityJson Json?     @map("handover_eligibility_json")
+  changeSummary           String?   @map("change_summary") @db.Text
+  effectiveFrom           DateTime? @map("effective_from") @db.Timestamptz
+  supersedesVersionId     String?   @map("supersedes_version_id") @db.Uuid
+  reviewedByPersonId      String?   @map("reviewed_by_person_id") @db.Uuid
+  reviewedAt              DateTime? @map("reviewed_at") @db.Timestamptz
+  publishedByPersonId     String?   @map("published_by_person_id") @db.Uuid
+  publishedAt             DateTime? @map("published_at") @db.Timestamptz
+  createdAt               DateTime  @default(now()) @map("created_at") @db.Timestamptz
+  createdByPersonId       String?   @map("created_by_person_id") @db.Uuid
+
+  runPhase                RunPhase  @relation(fields: [runPhaseId], references: [id])
+
+  @@map("IBOT_run_phase_config_version")
+}
+
+model PhaseAssignment {
+  id                    String    @id @default(uuid()) @db.Uuid
+  organizationId        String    @map("organization_id") @db.Uuid
+  runPhaseId            String    @map("run_phase_id") @db.Uuid
+  personId              String    @map("person_id") @db.Uuid
+  workspaceMembershipId String?   @map("workspace_membership_id") @db.Uuid
+  roleId                String    @map("role_id") @db.Uuid
+  partySide             String    @map("party_side") @db.VarChar(20) // ORGANIZATION, OTTOBON
+  status                String    @map("status") @db.VarChar(30)
+  effectiveFrom         DateTime? @map("effective_from") @db.Timestamptz
+  effectiveUntil        DateTime? @map("effective_until") @db.Timestamptz
+  assignedByPersonId    String?   @map("assigned_by_person_id") @db.Uuid
+  createdAt             DateTime  @default(now()) @map("created_at") @db.Timestamptz
+  updatedAt             DateTime  @updatedAt @map("updated_at") @db.Timestamptz
+  rowVersion            BigInt    @default(1) @map("row_version")
+
+  runPhase              RunPhase  @relation(fields: [runPhaseId], references: [id])
+  person                Person    @relation(fields: [personId], references: [id])
+
+  @@map("IBOT_phase_assignment")
 }

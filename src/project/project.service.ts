@@ -88,12 +88,108 @@ export class ProjectService {
       where: { id: projectId },
       include: {
         runs: {
+          include: {
+            runPhases: true,
+            setupVersions: true
+          },
           orderBy: { createdAt: 'desc' }
+        },
+        projectAssignments: {
+          include: {
+            person: true
+          }
         }
       }
     });
 
     if (!project) throw new NotFoundException("Project not found");
     return project;
+  }
+
+  async createProjectRun(projectId: string, data: {
+    displayName: string,
+    description?: string,
+    targetParticipantCount?: number,
+    plannedStartAt?: Date,
+    plannedEndAt?: Date
+  }) {
+    const project = await this.db.project.findUnique({
+      where: { id: projectId }
+    });
+
+    if (!project) throw new NotFoundException("Project not found");
+
+    const count = await this.db.projectRun.count({
+      where: { projectId }
+    });
+
+    const sequenceNo = count + 1;
+    const runCode = `${project.projectCode}-R${sequenceNo}`;
+
+    return this.db.projectRun.create({
+      data: {
+        organizationId: project.organizationId,
+        projectId: project.id,
+        runCode,
+        displayName: data.displayName,
+        description: data.description || '',
+        sequenceNo,
+        status: 'ACTIVE',
+        visibility: 'PRIVATE',
+        targetParticipantCount: data.targetParticipantCount || 50,
+        plannedStartAt: data.plannedStartAt,
+        plannedEndAt: data.plannedEndAt,
+        actualStartAt: new Date(),
+        
+        // Create initial Setup Version (v1)
+        setupVersions: {
+          create: {
+            organizationId: project.organizationId,
+            versionNo: 1,
+            status: 'APPROVED',
+            entryPolicyJson: { allowSelfEnrollment: false, allowInvitation: true },
+            participantFieldSchemaJson: { fields: ['firstName', 'lastName', 'email', 'phone'] }
+          }
+        },
+
+        // Create default Journey Phases (IDENTIFY -> BUILD -> OPERATE -> TRANSFER)
+        runPhases: {
+          create: [
+            {
+              organizationId: project.organizationId,
+              phaseType: 'IDENTIFY',
+              sequenceNo: 1,
+              status: 'ACTIVE',
+              ownershipType: 'ORGANIZATION'
+            },
+            {
+              organizationId: project.organizationId,
+              phaseType: 'BUILD',
+              sequenceNo: 2,
+              status: 'NOT_STARTED',
+              ownershipType: 'OTTOBON'
+            },
+            {
+              organizationId: project.organizationId,
+              phaseType: 'OPERATE',
+              sequenceNo: 3,
+              status: 'NOT_STARTED',
+              ownershipType: 'SHARED'
+            },
+            {
+              organizationId: project.organizationId,
+              phaseType: 'TRANSFER',
+              sequenceNo: 4,
+              status: 'NOT_STARTED',
+              ownershipType: 'ORGANIZATION'
+            }
+          ]
+        }
+      },
+      include: {
+        setupVersions: true,
+        runPhases: true
+      }
+    });
   }
 }

@@ -26,4 +26,22 @@ export class ProjectController {
   async getProjectDetails(@Param('id') id: string) {
     return this.projectService.getProjectDetails(id);
   }
+
+  @Post(':id/runs')
+  async createProjectRun(
+    @Param('id') projectId: string,
+    @Body() body: {
+      displayName: string,
+      description?: string,
+      targetParticipantCount?: number,
+      plannedStartAt?: string,
+      plannedEndAt?: string
+    }
+  ) {
+    return this.projectService.createProjectRun(projectId, {
+      ...body,
+      plannedStartAt: body.plannedStartAt ? new Date(body.plannedStartAt) : undefined,
+      plannedEndAt: body.plannedEndAt ? new Date(body.plannedEndAt) : undefined
+    });
+  }
 }
